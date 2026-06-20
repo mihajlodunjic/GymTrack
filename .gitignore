@@ -1,0 +1,9 @@
+spec/
+backend/.vs
+docs/
+backend/**/bin/
+backend/**/obj/
+backend/**/TestResults/
+backend/**/*.user
+backend/**/*.rsuser
+backend/**/*.suo
