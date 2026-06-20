@@ -1,9 +1,10 @@
 using System.ComponentModel.DataAnnotations;
+using GymTrack.Common;
 using GymTrack.Enums;
 
 namespace GymTrack.Entities;
 
-public sealed class User
+public sealed class User : IAuditableEntity
 {
     public int Id { get; set; }
 
@@ -21,4 +22,6 @@ public sealed class User
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+
+    public Member? Member { get; set; }
 }

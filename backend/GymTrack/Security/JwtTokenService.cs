@@ -21,12 +21,17 @@ public sealed class JwtTokenService : ITokenService
     {
         var expiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationMinutes);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(JwtClaimTypes.UserId, user.Id.ToString()),
-            new Claim(JwtClaimTypes.Email, user.Email),
-            new Claim(JwtClaimTypes.Role, user.Role.ToString())
+            new(JwtClaimTypes.UserId, user.Id.ToString()),
+            new(JwtClaimTypes.Email, user.Email),
+            new(JwtClaimTypes.Role, user.Role.ToString())
         };
+
+        if (user.Member is not null)
+        {
+            claims.Add(new Claim(JwtClaimTypes.MemberId, user.Member.Id.ToString()));
+        }
 
         var signingCredentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret)),

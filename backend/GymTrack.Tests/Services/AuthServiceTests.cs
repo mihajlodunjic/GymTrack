@@ -78,6 +78,42 @@ public sealed class AuthServiceTests
         }));
     }
 
+    [Fact]
+    public async Task GetCurrentUserAsync_ReturnsMemberId_WhenLinkedMemberExists()
+    {
+        await using var dbContext = TestDbContextFactory.Create();
+        var passwordService = new PasswordService();
+
+        var user = new User
+        {
+            Email = "member@gymtrack.local",
+            PasswordHash = passwordService.HashPassword("Admin123!"),
+            Role = UserRole.Member,
+            IsActive = true
+        };
+
+        var member = new Member
+        {
+            User = user,
+            FirstName = "Mika",
+            LastName = "Mikic",
+            MembershipCode = "GYM-2026-0001",
+            IsActive = true
+        };
+
+        dbContext.Members.Add(member);
+        await dbContext.SaveChangesAsync();
+
+        var authService = new AuthService(dbContext, passwordService, CreateTokenService());
+        var principal = TestClaimsPrincipalFactory.Create(user);
+
+        var response = await authService.GetCurrentUserAsync(principal);
+
+        Assert.Equal(user.Id, response.Id);
+        Assert.Equal(member.Id, response.MemberId);
+        Assert.Equal(UserRole.Member, response.Role);
+    }
+
     private static ITokenService CreateTokenService()
     {
         return new JwtTokenService(Options.Create(new JwtSettings

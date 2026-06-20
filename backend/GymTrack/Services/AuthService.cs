@@ -29,6 +29,7 @@ public sealed class AuthService : IAuthService
         var normalizedEmail = NormalizeEmail(request.Email);
 
         var user = await _dbContext.Users
+            .Include(entity => entity.Member)
             .SingleOrDefaultAsync(entity => entity.Email == normalizedEmail, cancellationToken);
 
         if (user is null || !_passwordService.VerifyPassword(request.Password, user.PasswordHash))
@@ -57,6 +58,7 @@ public sealed class AuthService : IAuthService
 
         var user = await _dbContext.Users
             .AsNoTracking()
+            .Include(entity => entity.Member)
             .SingleOrDefaultAsync(entity => entity.Id == userId, cancellationToken);
 
         if (user is null)
@@ -81,6 +83,6 @@ public sealed class AuthService : IAuthService
             Id = user.Id,
             Email = user.Email,
             Role = user.Role,
-            MemberId = null
+            MemberId = user.Member?.Id
         };
 }

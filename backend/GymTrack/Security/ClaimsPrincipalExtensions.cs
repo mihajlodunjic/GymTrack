@@ -15,4 +15,15 @@ public static class ClaimsPrincipalExtensions
 
         return userId;
     }
+
+    public static int GetRequiredMemberId(this ClaimsPrincipal principal)
+    {
+        var rawMemberId = principal.FindFirstValue(JwtClaimTypes.MemberId);
+        if (!int.TryParse(rawMemberId, out var memberId))
+        {
+            throw new UnauthorizedException("Current member is not authenticated.");
+        }
+
+        return memberId;
+    }
 }
