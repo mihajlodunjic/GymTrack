@@ -13,11 +13,16 @@ public sealed class MembersController : ControllerBase
 {
     private readonly IMemberService _memberService;
     private readonly IMembershipPaymentService _membershipPaymentService;
+    private readonly IQrCodeService _qrCodeService;
 
-    public MembersController(IMemberService memberService, IMembershipPaymentService membershipPaymentService)
+    public MembersController(
+        IMemberService memberService,
+        IMembershipPaymentService membershipPaymentService,
+        IQrCodeService qrCodeService)
     {
         _memberService = memberService;
         _membershipPaymentService = membershipPaymentService;
+        _qrCodeService = qrCodeService;
     }
 
     [Authorize(Roles = nameof(UserRole.Admin))]
@@ -105,6 +110,17 @@ public sealed class MembersController : ControllerBase
         return Ok(response);
     }
 
+    [Authorize(Roles = nameof(UserRole.Admin))]
+    [HttpGet("{id:int}/qr-code")]
+    [Produces("image/png")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetQrCode(int id, CancellationToken cancellationToken)
+    {
+        var content = await _qrCodeService.GenerateQrCodeForMemberAsync(id, cancellationToken);
+        return File(content, "image/png");
+    }
+
     [Authorize(Roles = nameof(UserRole.Member))]
     [HttpGet("me")]
     [ProducesResponseType(typeof(MemberDetailsResponse), StatusCodes.Status200OK)]
@@ -125,5 +141,17 @@ public sealed class MembersController : ControllerBase
     {
         var response = await _membershipPaymentService.GetCurrentMemberStatusAsync(User, cancellationToken);
         return Ok(response);
+    }
+
+    [Authorize(Roles = nameof(UserRole.Member))]
+    [HttpGet("me/qr-code")]
+    [Produces("image/png")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetMyQrCode(CancellationToken cancellationToken)
+    {
+        var content = await _qrCodeService.GenerateQrCodeForCurrentMemberAsync(User, cancellationToken);
+        return File(content, "image/png");
     }
 }

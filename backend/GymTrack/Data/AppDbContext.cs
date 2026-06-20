@@ -20,6 +20,8 @@ public sealed class AppDbContext : DbContext
 
     public DbSet<MembershipPayment> MembershipPayments => Set<MembershipPayment>();
 
+    public DbSet<CheckIn> CheckIns => Set<CheckIn>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
@@ -155,6 +157,40 @@ public sealed class AppDbContext : DbContext
             entity.HasOne(payment => payment.CreatedByUser)
                 .WithMany(user => user.CreatedMembershipPayments)
                 .HasForeignKey(payment => payment.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CheckIn>(entity =>
+        {
+            entity.ToTable("CheckIns");
+
+            entity.HasKey(checkIn => checkIn.Id);
+
+            entity.Property(checkIn => checkIn.CheckedInAt)
+                .IsRequired();
+
+            entity.Property(checkIn => checkIn.WasMembershipValid)
+                .IsRequired();
+
+            entity.Property(checkIn => checkIn.Note)
+                .HasMaxLength(1000);
+
+            entity.Property(checkIn => checkIn.CreatedAt)
+                .IsRequired();
+
+            entity.HasOne(checkIn => checkIn.Member)
+                .WithMany(member => member.CheckIns)
+                .HasForeignKey(checkIn => checkIn.MemberId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(checkIn => checkIn.MembershipPayment)
+                .WithMany(payment => payment.CheckIns)
+                .HasForeignKey(checkIn => checkIn.MembershipPaymentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(checkIn => checkIn.CheckedInByUser)
+                .WithMany(user => user.RecordedCheckIns)
+                .HasForeignKey(checkIn => checkIn.CheckedInByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

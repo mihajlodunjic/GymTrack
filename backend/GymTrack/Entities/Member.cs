@@ -33,4 +33,6 @@ public sealed class Member : IAuditableEntity
     public User User { get; set; } = null!;
 
     public ICollection<MembershipPayment> MembershipPayments { get; set; } = new List<MembershipPayment>();
+
+    public ICollection<CheckIn> CheckIns { get; set; } = new List<CheckIn>();
 }

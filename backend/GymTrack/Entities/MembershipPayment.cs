@@ -37,4 +37,6 @@ public sealed class MembershipPayment : IAuditableEntity
     public MembershipPlan MembershipPlan { get; set; } = null!;
 
     public User CreatedByUser { get; set; } = null!;
+
+    public ICollection<CheckIn> CheckIns { get; set; } = new List<CheckIn>();
 }

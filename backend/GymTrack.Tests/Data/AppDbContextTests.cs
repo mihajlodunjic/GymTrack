@@ -72,4 +72,18 @@ public sealed class AppDbContextTests
         Assert.Contains(entityType.GetForeignKeys(), key => key.Properties.Any(property => property.Name == nameof(MembershipPayment.MembershipPlanId)));
         Assert.Contains(entityType.GetForeignKeys(), key => key.Properties.Any(property => property.Name == nameof(MembershipPayment.CreatedByUserId)));
     }
+
+    [Fact]
+    public void Model_ConfiguresCheckIn_Relationships()
+    {
+        using var dbContext = TestDbContextFactory.Create();
+
+        var entityType = dbContext.Model.FindEntityType(typeof(CheckIn));
+
+        Assert.NotNull(entityType);
+        Assert.Equal("CheckIns", entityType!.GetTableName());
+        Assert.Contains(entityType.GetForeignKeys(), key => key.Properties.Any(property => property.Name == nameof(CheckIn.MemberId)));
+        Assert.Contains(entityType.GetForeignKeys(), key => key.Properties.Any(property => property.Name == nameof(CheckIn.MembershipPaymentId)));
+        Assert.Contains(entityType.GetForeignKeys(), key => key.Properties.Any(property => property.Name == nameof(CheckIn.CheckedInByUserId)));
+    }
 }

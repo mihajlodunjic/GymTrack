@@ -26,4 +26,6 @@ public sealed class User : IAuditableEntity
     public Member? Member { get; set; }
 
     public ICollection<MembershipPayment> CreatedMembershipPayments { get; set; } = new List<MembershipPayment>();
+
+    public ICollection<CheckIn> RecordedCheckIns { get; set; } = new List<CheckIn>();
 }

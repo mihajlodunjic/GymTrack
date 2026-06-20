@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using GymTrack.Common;
 using GymTrack.Common.Exceptions;
 using GymTrack.Data;
 using GymTrack.DTOs.MembershipPayment;
@@ -243,57 +244,8 @@ public sealed class MembershipPaymentService : IMembershipPaymentService
             .Where(payment => payment.MemberId == memberId)
             .ToListAsync(cancellationToken);
 
-        var timeBasedPayment = payments
-            .Where(payment => IsActiveTimeBased(payment, today))
-            .OrderBy(payment => payment.ValidUntil ?? DateTime.MaxValue)
-            .ThenBy(payment => payment.PaidAt)
-            .ThenBy(payment => payment.Id)
-            .FirstOrDefault();
-
-        if (timeBasedPayment is not null)
-        {
-            return timeBasedPayment;
-        }
-
-        var combinedPayment = payments
-            .Where(payment => IsActiveCombined(payment, today))
-            .OrderBy(payment => payment.ValidUntil ?? DateTime.MaxValue)
-            .ThenBy(payment => payment.PaidAt)
-            .ThenBy(payment => payment.Id)
-            .FirstOrDefault();
-
-        if (combinedPayment is not null)
-        {
-            return combinedPayment;
-        }
-
-        return payments
-            .Where(IsActiveVisitBased)
-            .OrderBy(payment => payment.PaidAt)
-            .ThenBy(payment => payment.Id)
-            .FirstOrDefault();
+        return MembershipPaymentRules.SelectPreferredActivePayment(payments, today);
     }
-
-    private static bool IsActiveTimeBased(MembershipPayment payment, DateTime today) =>
-        payment.MembershipPlan.PlanType == MembershipPlanType.TimeBased &&
-        payment.ValidUntil.HasValue &&
-        payment.ValidFrom.Date <= today &&
-        payment.ValidUntil.Value.Date >= today;
-
-    private static bool IsActiveVisitBased(MembershipPayment payment) =>
-        payment.MembershipPlan.PlanType == MembershipPlanType.VisitBased &&
-        payment.TotalVisits.HasValue &&
-        payment.UsedVisits.HasValue &&
-        payment.UsedVisits.Value < payment.TotalVisits.Value;
-
-    private static bool IsActiveCombined(MembershipPayment payment, DateTime today) =>
-        payment.MembershipPlan.PlanType == MembershipPlanType.Combined &&
-        payment.ValidUntil.HasValue &&
-        payment.TotalVisits.HasValue &&
-        payment.UsedVisits.HasValue &&
-        payment.ValidFrom.Date <= today &&
-        payment.ValidUntil.Value.Date >= today &&
-        payment.UsedVisits.Value < payment.TotalVisits.Value;
 
     private static MembershipPaymentResponse MapPaymentResponse(MembershipPayment payment) =>
         new()
@@ -310,7 +262,7 @@ public sealed class MembershipPaymentService : IMembershipPaymentService
             ValidUntil = payment.ValidUntil,
             TotalVisits = payment.TotalVisits,
             UsedVisits = payment.UsedVisits,
-            RemainingVisits = CalculateRemainingVisits(payment),
+            RemainingVisits = MembershipPaymentRules.CalculateRemainingVisits(payment),
             Note = payment.Note
         };
 
@@ -341,7 +293,7 @@ public sealed class MembershipPaymentService : IMembershipPaymentService
             ValidUntil = activePayment.ValidUntil,
             TotalVisits = activePayment.TotalVisits,
             UsedVisits = activePayment.UsedVisits,
-            RemainingVisits = CalculateRemainingVisits(activePayment),
+            RemainingVisits = MembershipPaymentRules.CalculateRemainingVisits(activePayment),
             Message = BuildStatusMessage(activePayment)
         };
     }
@@ -351,17 +303,12 @@ public sealed class MembershipPaymentService : IMembershipPaymentService
             ? validFrom.AddDays(plan.DurationInDays.Value)
             : null;
 
-    private static int? CalculateRemainingVisits(MembershipPayment payment) =>
-        payment.TotalVisits.HasValue && payment.UsedVisits.HasValue
-            ? Math.Max(payment.TotalVisits.Value - payment.UsedVisits.Value, 0)
-            : null;
-
     private static string BuildStatusMessage(MembershipPayment payment) =>
         payment.MembershipPlan.PlanType switch
         {
             MembershipPlanType.TimeBased => $"Active time-based membership until {payment.ValidUntil:yyyy-MM-dd}.",
-            MembershipPlanType.VisitBased => $"Active visit-based membership with {CalculateRemainingVisits(payment)} remaining visits.",
-            MembershipPlanType.Combined => $"Active combined membership until {payment.ValidUntil:yyyy-MM-dd} with {CalculateRemainingVisits(payment)} remaining visits.",
+            MembershipPlanType.VisitBased => $"Active visit-based membership with {MembershipPaymentRules.CalculateRemainingVisits(payment)} remaining visits.",
+            MembershipPlanType.Combined => $"Active combined membership until {payment.ValidUntil:yyyy-MM-dd} with {MembershipPaymentRules.CalculateRemainingVisits(payment)} remaining visits.",
             _ => "Active membership."
         };
 
