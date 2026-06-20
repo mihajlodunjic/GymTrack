@@ -33,4 +33,12 @@ public sealed class DashboardController : ControllerBase
         var response = await _dashboardService.GetExpiringMembershipsAsync(cancellationToken);
         return Ok(response);
     }
+
+    [HttpGet("notifications")]
+    [ProducesResponseType(typeof(IReadOnlyList<SystemNotificationResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<SystemNotificationResponse>>> GetNotifications(CancellationToken cancellationToken)
+    {
+        var response = await _dashboardService.GetRecentNotificationsAsync(cancellationToken);
+        return Ok(response);
+    }
 }

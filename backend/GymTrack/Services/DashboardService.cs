@@ -87,6 +87,20 @@ public sealed class DashboardService : IDashboardService
             .ToArray();
     }
 
+    public async Task<IReadOnlyList<SystemNotificationResponse>> GetRecentNotificationsAsync(CancellationToken cancellationToken = default)
+    {
+        var notifications = await _dbContext.SystemNotifications
+            .AsNoTracking()
+            .OrderByDescending(notification => notification.CreatedAt)
+            .ThenByDescending(notification => notification.Id)
+            .Take(20)
+            .ToListAsync(cancellationToken);
+
+        return notifications
+            .Select(MapNotification)
+            .ToArray();
+    }
+
     private static ExpiringMembershipResponse MapExpiringMembership(MembershipPayment payment, DateTime today) =>
         new()
         {
@@ -99,5 +113,16 @@ public sealed class DashboardService : IDashboardService
             ValidUntil = payment.ValidUntil!.Value,
             DaysUntilExpiration = (payment.ValidUntil.Value.Date - today).Days,
             RemainingVisits = MembershipPaymentRules.CalculateRemainingVisits(payment)
+        };
+
+    private static SystemNotificationResponse MapNotification(SystemNotification notification) =>
+        new()
+        {
+            Id = notification.Id,
+            Title = notification.Title,
+            Message = notification.Message,
+            Type = notification.Type,
+            IsRead = notification.IsRead,
+            CreatedAt = notification.CreatedAt
         };
 }

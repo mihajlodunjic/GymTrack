@@ -5,6 +5,7 @@ using GymTrack.Common.Options;
 using GymTrack.Data;
 using GymTrack.Security;
 using GymTrack.Services;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -88,11 +89,19 @@ builder.Services.AddOptions<CorsSettings>()
     .BindConfiguration(CorsSettings.SectionName)
     .ValidateOnStart();
 
+builder.Services.AddOptions<HangfireSettings>()
+    .BindConfiguration(HangfireSettings.SectionName)
+    .ValidateOnStart();
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
 
+var hangfireEnabled = builder.Configuration.IsHangfireEnabled();
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
+
+builder.Services.AddConfiguredHangfire(builder.Configuration, connectionString);
 
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
     ?? throw new InvalidOperationException("Jwt configuration is missing.");
@@ -155,6 +164,7 @@ builder.Services.AddScoped<IMembershipPaymentService, MembershipPaymentService>(
 builder.Services.AddScoped<ICheckInService, CheckInService>();
 builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IHangfireJobService, HangfireJobService>();
 
 var app = builder.Build();
 
@@ -193,6 +203,11 @@ app.UseCors(CorsSettings.PolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 
+if (hangfireEnabled && app.Environment.IsDevelopment())
+{
+    app.UseHangfireDashboard("/hangfire");
+}
+
 app.MapControllers();
 
 await using (var scope = app.Services.CreateAsyncScope())
@@ -202,6 +217,19 @@ await using (var scope = app.Services.CreateAsyncScope())
 
     var adminSeedService = scope.ServiceProvider.GetRequiredService<IAdminSeedService>();
     await adminSeedService.SeedAsync();
+
+    if (hangfireEnabled)
+    {
+        RecurringJob.AddOrUpdate<IHangfireJobService>(
+            "check-expiring-memberships",
+            service => service.CheckExpiringMembershipsAsync(),
+            Cron.Daily);
+
+        RecurringJob.AddOrUpdate<IHangfireJobService>(
+            "create-daily-admin-report",
+            service => service.CreateDailyAdminReportAsync(),
+            Cron.Daily);
+    }
 }
 
 app.Run();

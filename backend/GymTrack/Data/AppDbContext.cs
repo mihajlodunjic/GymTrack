@@ -22,6 +22,8 @@ public sealed class AppDbContext : DbContext
 
     public DbSet<CheckIn> CheckIns => Set<CheckIn>();
 
+    public DbSet<SystemNotification> SystemNotifications => Set<SystemNotification>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
@@ -192,6 +194,32 @@ public sealed class AppDbContext : DbContext
                 .WithMany(user => user.RecordedCheckIns)
                 .HasForeignKey(checkIn => checkIn.CheckedInByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SystemNotification>(entity =>
+        {
+            entity.ToTable("SystemNotifications");
+
+            entity.HasKey(notification => notification.Id);
+
+            entity.Property(notification => notification.Title)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.Property(notification => notification.Message)
+                .HasMaxLength(4000)
+                .IsRequired();
+
+            entity.Property(notification => notification.Type)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .IsRequired();
+
+            entity.Property(notification => notification.IsRead)
+                .HasDefaultValue(false);
+
+            entity.Property(notification => notification.CreatedAt)
+                .IsRequired();
         });
     }
 

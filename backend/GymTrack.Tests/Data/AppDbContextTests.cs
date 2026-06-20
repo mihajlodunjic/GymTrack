@@ -86,4 +86,15 @@ public sealed class AppDbContextTests
         Assert.Contains(entityType.GetForeignKeys(), key => key.Properties.Any(property => property.Name == nameof(CheckIn.MembershipPaymentId)));
         Assert.Contains(entityType.GetForeignKeys(), key => key.Properties.Any(property => property.Name == nameof(CheckIn.CheckedInByUserId)));
     }
+
+    [Fact]
+    public void Model_ConfiguresSystemNotifications_Table()
+    {
+        using var dbContext = TestDbContextFactory.Create();
+
+        var entityType = dbContext.Model.FindEntityType(typeof(SystemNotification));
+
+        Assert.NotNull(entityType);
+        Assert.Equal("SystemNotifications", entityType!.GetTableName());
+    }
 }
