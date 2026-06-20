@@ -7,3 +7,6 @@ backend/**/TestResults/
 backend/**/*.user
 backend/**/*.rsuser
 backend/**/*.suo
+frontend/node_modules/
+frontend/dist/
+frontend/.env
