@@ -1,4 +1,5 @@
 using GymTrack.DTOs.Member;
+using GymTrack.DTOs.MembershipPayment;
 using GymTrack.Enums;
 using GymTrack.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -11,10 +12,12 @@ namespace GymTrack.Controllers;
 public sealed class MembersController : ControllerBase
 {
     private readonly IMemberService _memberService;
+    private readonly IMembershipPaymentService _membershipPaymentService;
 
-    public MembersController(IMemberService memberService)
+    public MembersController(IMemberService memberService, IMembershipPaymentService membershipPaymentService)
     {
         _memberService = memberService;
+        _membershipPaymentService = membershipPaymentService;
     }
 
     [Authorize(Roles = nameof(UserRole.Admin))]
@@ -82,6 +85,26 @@ public sealed class MembersController : ControllerBase
         return Ok(response);
     }
 
+    [Authorize(Roles = nameof(UserRole.Admin))]
+    [HttpGet("by-code/{membershipCode}/status")]
+    [ProducesResponseType(typeof(MembershipStatusResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<MembershipStatusResponse>> GetStatusByCode(string membershipCode, CancellationToken cancellationToken)
+    {
+        var response = await _membershipPaymentService.GetMembershipStatusByCodeAsync(membershipCode, cancellationToken);
+        return Ok(response);
+    }
+
+    [Authorize(Roles = nameof(UserRole.Admin))]
+    [HttpGet("{id:int}/status")]
+    [ProducesResponseType(typeof(MembershipStatusResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<MembershipStatusResponse>> GetStatus(int id, CancellationToken cancellationToken)
+    {
+        var response = await _membershipPaymentService.GetMembershipStatusForMemberAsync(id, cancellationToken);
+        return Ok(response);
+    }
+
     [Authorize(Roles = nameof(UserRole.Member))]
     [HttpGet("me")]
     [ProducesResponseType(typeof(MemberDetailsResponse), StatusCodes.Status200OK)]
@@ -90,6 +113,17 @@ public sealed class MembersController : ControllerBase
     public async Task<ActionResult<MemberDetailsResponse>> GetMe(CancellationToken cancellationToken)
     {
         var response = await _memberService.GetCurrentMemberProfileAsync(User, cancellationToken);
+        return Ok(response);
+    }
+
+    [Authorize(Roles = nameof(UserRole.Member))]
+    [HttpGet("me/status")]
+    [ProducesResponseType(typeof(MembershipStatusResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<MembershipStatusResponse>> GetMyStatus(CancellationToken cancellationToken)
+    {
+        var response = await _membershipPaymentService.GetCurrentMemberStatusAsync(User, cancellationToken);
         return Ok(response);
     }
 }

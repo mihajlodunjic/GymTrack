@@ -58,4 +58,18 @@ public sealed class AppDbContextTests
         Assert.Equal(nameof(MembershipPlan.PlanType), discriminator!.Name);
         Assert.Equal(typeof(MembershipPlanType), discriminator.ClrType);
     }
+
+    [Fact]
+    public void Model_ConfiguresMembershipPayment_Relationships()
+    {
+        using var dbContext = TestDbContextFactory.Create();
+
+        var entityType = dbContext.Model.FindEntityType(typeof(MembershipPayment));
+
+        Assert.NotNull(entityType);
+        Assert.Equal("MembershipPayments", entityType!.GetTableName());
+        Assert.Contains(entityType.GetForeignKeys(), key => key.Properties.Any(property => property.Name == nameof(MembershipPayment.MemberId)));
+        Assert.Contains(entityType.GetForeignKeys(), key => key.Properties.Any(property => property.Name == nameof(MembershipPayment.MembershipPlanId)));
+        Assert.Contains(entityType.GetForeignKeys(), key => key.Properties.Any(property => property.Name == nameof(MembershipPayment.CreatedByUserId)));
+    }
 }

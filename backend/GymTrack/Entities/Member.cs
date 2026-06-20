@@ -31,4 +31,6 @@ public sealed class Member : IAuditableEntity
     public DateTime UpdatedAt { get; set; }
 
     public User User { get; set; } = null!;
+
+    public ICollection<MembershipPayment> MembershipPayments { get; set; } = new List<MembershipPayment>();
 }

@@ -28,4 +28,6 @@ public abstract class MembershipPlan : IAuditableEntity
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
+
+    public ICollection<MembershipPayment> MembershipPayments { get; set; } = new List<MembershipPayment>();
 }

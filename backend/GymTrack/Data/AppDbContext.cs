@@ -18,6 +18,8 @@ public sealed class AppDbContext : DbContext
 
     public DbSet<MembershipPlan> MembershipPlans => Set<MembershipPlan>();
 
+    public DbSet<MembershipPayment> MembershipPayments => Set<MembershipPayment>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
@@ -113,6 +115,47 @@ public sealed class AppDbContext : DbContext
                 .HasValue<TimeBasedMembershipPlan>(MembershipPlanType.TimeBased)
                 .HasValue<VisitBasedMembershipPlan>(MembershipPlanType.VisitBased)
                 .HasValue<CombinedMembershipPlan>(MembershipPlanType.Combined);
+        });
+
+        modelBuilder.Entity<MembershipPayment>(entity =>
+        {
+            entity.ToTable("MembershipPayments");
+
+            entity.HasKey(payment => payment.Id);
+
+            entity.Property(payment => payment.Amount)
+                .HasPrecision(18, 2)
+                .IsRequired();
+
+            entity.Property(payment => payment.PaidAt)
+                .IsRequired();
+
+            entity.Property(payment => payment.ValidFrom)
+                .IsRequired();
+
+            entity.Property(payment => payment.Note)
+                .HasMaxLength(1000);
+
+            entity.Property(payment => payment.CreatedAt)
+                .IsRequired();
+
+            entity.Property(payment => payment.UpdatedAt)
+                .IsRequired();
+
+            entity.HasOne(payment => payment.Member)
+                .WithMany(member => member.MembershipPayments)
+                .HasForeignKey(payment => payment.MemberId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(payment => payment.MembershipPlan)
+                .WithMany(plan => plan.MembershipPayments)
+                .HasForeignKey(payment => payment.MembershipPlanId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(payment => payment.CreatedByUser)
+                .WithMany(user => user.CreatedMembershipPayments)
+                .HasForeignKey(payment => payment.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 
