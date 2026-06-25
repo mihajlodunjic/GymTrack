@@ -32,6 +32,7 @@ internal static class TestServiceProviderFactory
         services.AddScoped<IMembershipPaymentRepository, MembershipPaymentRepository>();
         services.AddScoped<ICheckInRepository, CheckInRepository>();
         services.AddScoped<ISystemNotificationRepository, SystemNotificationRepository>();
+        services.AddScoped<IStudentRepository, StudentRepository>();
         services.AddScoped<IUnitOfWork, EfUnitOfWork>();
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<ITokenService, JwtTokenService>();

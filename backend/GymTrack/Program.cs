@@ -164,6 +164,7 @@ builder.Services.AddScoped<IMembershipPlanRepository, MembershipPlanRepository>(
 builder.Services.AddScoped<IMembershipPaymentRepository, MembershipPaymentRepository>();
 builder.Services.AddScoped<ICheckInRepository, CheckInRepository>();
 builder.Services.AddScoped<ISystemNotificationRepository, SystemNotificationRepository>();
+builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<ITokenService, JwtTokenService>();

@@ -24,6 +24,8 @@ public sealed class AppDbContext : DbContext
 
     public DbSet<SystemNotification> SystemNotifications => Set<SystemNotification>();
 
+    public DbSet<Student> Students => Set<Student>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
@@ -219,6 +221,21 @@ public sealed class AppDbContext : DbContext
                 .HasDefaultValue(false);
 
             entity.Property(notification => notification.CreatedAt)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity<Student>(entity =>
+        {
+            entity.ToTable("Students");
+
+            entity.HasKey(student => student.Id);
+
+            entity.Property(student => student.Ime)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(student => student.Prezime)
+                .HasMaxLength(100)
                 .IsRequired();
         });
     }

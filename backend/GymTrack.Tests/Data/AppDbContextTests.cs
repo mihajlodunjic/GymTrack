@@ -97,4 +97,20 @@ public sealed class AppDbContextTests
         Assert.NotNull(entityType);
         Assert.Equal("SystemNotifications", entityType!.GetTableName());
     }
+
+    [Fact]
+    public void Model_ConfiguresStudents_Table()
+    {
+        using var dbContext = TestDbContextFactory.Create();
+
+        var entityType = dbContext.Model.FindEntityType(typeof(Student));
+
+        Assert.NotNull(entityType);
+        Assert.Equal("Students", entityType!.GetTableName());
+        Assert.Equal(nameof(Student.Id), entityType.FindPrimaryKey()!.Properties.Single().Name);
+        Assert.Equal(100, entityType.FindProperty(nameof(Student.Ime))!.GetMaxLength());
+        Assert.Equal(100, entityType.FindProperty(nameof(Student.Prezime))!.GetMaxLength());
+        Assert.False(entityType.FindProperty(nameof(Student.Ime))!.IsNullable);
+        Assert.False(entityType.FindProperty(nameof(Student.Prezime))!.IsNullable);
+    }
 }
