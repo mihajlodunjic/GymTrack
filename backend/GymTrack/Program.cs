@@ -3,9 +3,12 @@ using System.Text.Json.Serialization;
 using GymTrack.Common;
 using GymTrack.Common.Options;
 using GymTrack.Data;
+using GymTrack.Repositories.Implementations;
+using GymTrack.Repositories.Interfaces;
 using GymTrack.Security;
 using GymTrack.Services;
 using Hangfire;
+using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -44,6 +47,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 });
 
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
 builder.Services.AddSwaggerGen(options =>
 {
     var jwtSecurityScheme = new OpenApiSecurityScheme
@@ -154,16 +158,17 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IMemberRepository, MemberRepository>();
+builder.Services.AddScoped<IMembershipPlanRepository, MembershipPlanRepository>();
+builder.Services.AddScoped<IMembershipPaymentRepository, MembershipPaymentRepository>();
+builder.Services.AddScoped<ICheckInRepository, CheckInRepository>();
+builder.Services.AddScoped<ISystemNotificationRepository, SystemNotificationRepository>();
+builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAdminSeedService, AdminSeedService>();
-builder.Services.AddScoped<IMemberService, MemberService>();
-builder.Services.AddScoped<IMembershipPlanService, MembershipPlanService>();
-builder.Services.AddScoped<IMembershipPaymentService, MembershipPaymentService>();
-builder.Services.AddScoped<ICheckInService, CheckInService>();
 builder.Services.AddScoped<IQrCodeService, QrCodeService>();
-builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IHangfireJobService, HangfireJobService>();
 
 var app = builder.Build();

@@ -1,5 +1,6 @@
+using GymTrack.Application.Auth;
 using GymTrack.DTOs.Auth;
-using GymTrack.Services;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,11 +10,11 @@ namespace GymTrack.Controllers;
 [Route("api/auth")]
 public sealed class AuthController : ControllerBase
 {
-    private readonly IAuthService _authService;
+    private readonly IMediator _mediator;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IMediator mediator)
     {
-        _authService = authService;
+        _mediator = mediator;
     }
 
     [AllowAnonymous]
@@ -24,7 +25,7 @@ public sealed class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
-        var response = await _authService.LoginAsync(request, cancellationToken);
+        var response = await _mediator.Send(new LoginCommand(request), cancellationToken);
         return Ok(response);
     }
 
@@ -35,7 +36,7 @@ public sealed class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<CurrentUserResponse>> Me(CancellationToken cancellationToken)
     {
-        var response = await _authService.GetCurrentUserAsync(User, cancellationToken);
+        var response = await _mediator.Send(new GetCurrentUserQuery(User), cancellationToken);
         return Ok(response);
     }
 }

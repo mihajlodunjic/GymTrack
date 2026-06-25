@@ -1,10 +1,12 @@
+using GymTrack.Application.CheckIns;
 using GymTrack.Common.Exceptions;
 using GymTrack.Data;
 using GymTrack.DTOs.CheckIn;
 using GymTrack.Entities;
 using GymTrack.Enums;
-using GymTrack.Services;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GymTrack.Tests.Services;
 
@@ -17,12 +19,13 @@ public sealed class CheckInServiceTests
         var admin = await SeedAdminAsync(dbContext);
         var member = await SeedMemberAsync(dbContext, "pera@example.com", "GYM-2026-0001");
         var payment = await SeedTimeBasedPaymentAsync(dbContext, member);
-        var service = new CheckInService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.CheckInByMemberIdAsync(
+        var response = await mediator.Send(new CreateCheckInByMemberIdCommand(
             member.Id,
             new CreateCheckInByMemberIdRequest { Note = "Jutarnji trening" },
-            TestClaimsPrincipalFactory.Create(admin));
+            TestClaimsPrincipalFactory.Create(admin)));
 
         var checkIn = await dbContext.CheckIns
             .AsNoTracking()
@@ -42,12 +45,13 @@ public sealed class CheckInServiceTests
         var admin = await SeedAdminAsync(dbContext);
         var member = await SeedMemberAsync(dbContext, "pera@example.com", "GYM-2026-0001");
         await SeedTimeBasedPaymentAsync(dbContext, member);
-        var service = new CheckInService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.CheckInByMembershipCodeAsync(
+        var response = await mediator.Send(new CreateCheckInByMembershipCodeCommand(
             member.MembershipCode,
             new CreateCheckInByCodeRequest(),
-            TestClaimsPrincipalFactory.Create(admin));
+            TestClaimsPrincipalFactory.Create(admin)));
 
         Assert.Equal(member.Id, response.MemberId);
         Assert.True(response.WasMembershipValid);
@@ -59,12 +63,13 @@ public sealed class CheckInServiceTests
         await using var dbContext = TestDbContextFactory.Create();
         var member = await SeedMemberAsync(dbContext, "pera@example.com", "GYM-2026-0001");
         await SeedTimeBasedPaymentAsync(dbContext, member);
-        var service = new CheckInService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        await Assert.ThrowsAsync<ForbiddenException>(() => service.CheckInByMemberIdAsync(
+        await Assert.ThrowsAsync<ForbiddenException>(() => mediator.Send(new CreateCheckInByMemberIdCommand(
             member.Id,
             new CreateCheckInByMemberIdRequest(),
-            TestClaimsPrincipalFactory.Create(member.User)));
+            TestClaimsPrincipalFactory.Create(member.User))));
     }
 
     [Fact]
@@ -73,12 +78,13 @@ public sealed class CheckInServiceTests
         await using var dbContext = TestDbContextFactory.Create();
         var admin = await SeedAdminAsync(dbContext);
         var member = await SeedMemberAsync(dbContext, "pera@example.com", "GYM-2026-0001");
-        var service = new CheckInService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        await Assert.ThrowsAsync<BadRequestException>(() => service.CheckInByMemberIdAsync(
+        await Assert.ThrowsAsync<BadRequestException>(() => mediator.Send(new CreateCheckInByMemberIdCommand(
             member.Id,
             new CreateCheckInByMemberIdRequest(),
-            TestClaimsPrincipalFactory.Create(admin)));
+            TestClaimsPrincipalFactory.Create(admin))));
     }
 
     [Fact]
@@ -88,12 +94,13 @@ public sealed class CheckInServiceTests
         var admin = await SeedAdminAsync(dbContext);
         var member = await SeedMemberAsync(dbContext, "pera@example.com", "GYM-2026-0001");
         var payment = await SeedVisitBasedPaymentAsync(dbContext, member, totalVisits: 10, usedVisits: 4);
-        var service = new CheckInService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.CheckInByMemberIdAsync(
+        var response = await mediator.Send(new CreateCheckInByMemberIdCommand(
             member.Id,
             new CreateCheckInByMemberIdRequest(),
-            TestClaimsPrincipalFactory.Create(admin));
+            TestClaimsPrincipalFactory.Create(admin)));
 
         var updatedPayment = await dbContext.MembershipPayments
             .AsNoTracking()
@@ -110,12 +117,13 @@ public sealed class CheckInServiceTests
         var admin = await SeedAdminAsync(dbContext);
         var member = await SeedMemberAsync(dbContext, "pera@example.com", "GYM-2026-0001");
         var payment = await SeedCombinedPaymentAsync(dbContext, member, totalVisits: 8, usedVisits: 2);
-        var service = new CheckInService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.CheckInByMemberIdAsync(
+        var response = await mediator.Send(new CreateCheckInByMemberIdCommand(
             member.Id,
             new CreateCheckInByMemberIdRequest(),
-            TestClaimsPrincipalFactory.Create(admin));
+            TestClaimsPrincipalFactory.Create(admin)));
 
         var updatedPayment = await dbContext.MembershipPayments
             .AsNoTracking()
@@ -132,12 +140,13 @@ public sealed class CheckInServiceTests
         var admin = await SeedAdminAsync(dbContext);
         var member = await SeedMemberAsync(dbContext, "pera@example.com", "GYM-2026-0001");
         var payment = await SeedTimeBasedPaymentAsync(dbContext, member);
-        var service = new CheckInService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.CheckInByMemberIdAsync(
+        var response = await mediator.Send(new CreateCheckInByMemberIdCommand(
             member.Id,
             new CreateCheckInByMemberIdRequest(),
-            TestClaimsPrincipalFactory.Create(admin));
+            TestClaimsPrincipalFactory.Create(admin)));
 
         var updatedPayment = await dbContext.MembershipPayments
             .AsNoTracking()
@@ -157,12 +166,13 @@ public sealed class CheckInServiceTests
         var secondMember = await SeedMemberAsync(dbContext, "mika@example.com", "GYM-2026-0002");
         await SeedTimeBasedPaymentAsync(dbContext, firstMember);
         await SeedTimeBasedPaymentAsync(dbContext, secondMember);
-        var service = new CheckInService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        await service.CheckInByMemberIdAsync(firstMember.Id, new CreateCheckInByMemberIdRequest(), TestClaimsPrincipalFactory.Create(admin));
-        await service.CheckInByMemberIdAsync(secondMember.Id, new CreateCheckInByMemberIdRequest(), TestClaimsPrincipalFactory.Create(admin));
+        await mediator.Send(new CreateCheckInByMemberIdCommand(firstMember.Id, new CreateCheckInByMemberIdRequest(), TestClaimsPrincipalFactory.Create(admin)));
+        await mediator.Send(new CreateCheckInByMemberIdCommand(secondMember.Id, new CreateCheckInByMemberIdRequest(), TestClaimsPrincipalFactory.Create(admin)));
 
-        var response = await service.GetCurrentMemberCheckInsAsync(TestClaimsPrincipalFactory.Create(secondMember.User));
+        var response = await mediator.Send(new GetCurrentMemberCheckInsQuery(TestClaimsPrincipalFactory.Create(secondMember.User)));
 
         Assert.Single(response);
         Assert.All(response, checkIn => Assert.Equal(secondMember.Id, checkIn.MemberId));
@@ -177,12 +187,13 @@ public sealed class CheckInServiceTests
         var secondMember = await SeedMemberAsync(dbContext, "mika@example.com", "GYM-2026-0002");
         await SeedTimeBasedPaymentAsync(dbContext, firstMember);
         await SeedTimeBasedPaymentAsync(dbContext, secondMember);
-        var service = new CheckInService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        await service.CheckInByMemberIdAsync(firstMember.Id, new CreateCheckInByMemberIdRequest(), TestClaimsPrincipalFactory.Create(admin));
-        await service.CheckInByMemberIdAsync(secondMember.Id, new CreateCheckInByMemberIdRequest(), TestClaimsPrincipalFactory.Create(admin));
+        await mediator.Send(new CreateCheckInByMemberIdCommand(firstMember.Id, new CreateCheckInByMemberIdRequest(), TestClaimsPrincipalFactory.Create(admin)));
+        await mediator.Send(new CreateCheckInByMemberIdCommand(secondMember.Id, new CreateCheckInByMemberIdRequest(), TestClaimsPrincipalFactory.Create(admin)));
 
-        var response = await service.GetAllCheckInsAsync();
+        var response = await mediator.Send(new GetAllCheckInsQuery());
 
         Assert.Equal(2, response.Count);
     }

@@ -1,8 +1,10 @@
+using GymTrack.Application.Dashboard;
 using GymTrack.Data;
 using GymTrack.Entities;
 using GymTrack.Enums;
-using GymTrack.Services;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GymTrack.Tests.Services;
 
@@ -52,7 +54,7 @@ public sealed class DashboardServiceTests
             totalVisits: 10,
             usedVisits: 2);
 
-        var expiredVisitBased = await SeedPaymentAsync(
+        await SeedPaymentAsync(
             dbContext,
             activeMemberThree,
             new VisitBasedMembershipPlan
@@ -89,8 +91,9 @@ public sealed class DashboardServiceTests
 
         await dbContext.SaveChangesAsync();
 
-        var service = new DashboardService(dbContext);
-        var response = await service.GetDashboardStatsAsync();
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
+        var response = await mediator.Send(new GetDashboardStatsQuery());
 
         Assert.Equal(4, response.TotalMembers);
         Assert.Equal(3, response.ActiveMembers);
@@ -161,8 +164,9 @@ public sealed class DashboardServiceTests
             totalVisits: 10,
             usedVisits: 10);
 
-        var service = new DashboardService(dbContext);
-        var response = await service.GetExpiringMembershipsAsync();
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
+        var response = await mediator.Send(new GetExpiringMembershipsQuery());
 
         Assert.Equal(2, response.Count);
         Assert.Collection(response,

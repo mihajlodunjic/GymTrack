@@ -1,6 +1,7 @@
+using GymTrack.Application.MembershipPayments;
 using GymTrack.DTOs.MembershipPayment;
 using GymTrack.Enums;
-using GymTrack.Services;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,11 +11,11 @@ namespace GymTrack.Controllers;
 [Route("api/membership-payments")]
 public sealed class MembershipPaymentsController : ControllerBase
 {
-    private readonly IMembershipPaymentService _membershipPaymentService;
+    private readonly IMediator _mediator;
 
-    public MembershipPaymentsController(IMembershipPaymentService membershipPaymentService)
+    public MembershipPaymentsController(IMediator mediator)
     {
-        _membershipPaymentService = membershipPaymentService;
+        _mediator = mediator;
     }
 
     [Authorize(Roles = nameof(UserRole.Admin))]
@@ -22,7 +23,7 @@ public sealed class MembershipPaymentsController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<MembershipPaymentResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<MembershipPaymentResponse>>> GetAll(CancellationToken cancellationToken)
     {
-        var response = await _membershipPaymentService.GetAllPaymentsAsync(cancellationToken);
+        var response = await _mediator.Send(new GetAllMembershipPaymentsQuery(), cancellationToken);
         return Ok(response);
     }
 
@@ -32,7 +33,7 @@ public sealed class MembershipPaymentsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<MembershipPaymentResponse>> GetById(int id, CancellationToken cancellationToken)
     {
-        var response = await _membershipPaymentService.GetPaymentByIdAsync(id, cancellationToken);
+        var response = await _mediator.Send(new GetMembershipPaymentByIdQuery(id), cancellationToken);
         return Ok(response);
     }
 
@@ -46,7 +47,7 @@ public sealed class MembershipPaymentsController : ControllerBase
         [FromBody] CreateMembershipPaymentRequest request,
         CancellationToken cancellationToken)
     {
-        var response = await _membershipPaymentService.CreatePaymentAsync(request, User, cancellationToken);
+        var response = await _mediator.Send(new CreateMembershipPaymentCommand(request, User), cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
     }
 
@@ -56,7 +57,7 @@ public sealed class MembershipPaymentsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IReadOnlyList<MembershipPaymentResponse>>> GetForMember(int memberId, CancellationToken cancellationToken)
     {
-        var response = await _membershipPaymentService.GetPaymentsForMemberAsync(memberId, cancellationToken);
+        var response = await _mediator.Send(new GetPaymentsForMemberQuery(memberId), cancellationToken);
         return Ok(response);
     }
 
@@ -67,7 +68,7 @@ public sealed class MembershipPaymentsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IReadOnlyList<MembershipPaymentResponse>>> GetMe(CancellationToken cancellationToken)
     {
-        var response = await _membershipPaymentService.GetCurrentMemberPaymentsAsync(User, cancellationToken);
+        var response = await _mediator.Send(new GetCurrentMemberPaymentsQuery(User), cancellationToken);
         return Ok(response);
     }
 }

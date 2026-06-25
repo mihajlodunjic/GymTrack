@@ -1,6 +1,7 @@
+using GymTrack.Application.MembershipPlans;
 using GymTrack.DTOs.MembershipPlan;
 using GymTrack.Enums;
-using GymTrack.Services;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,18 +12,18 @@ namespace GymTrack.Controllers;
 [Authorize(Roles = nameof(UserRole.Admin))]
 public sealed class MembershipPlansController : ControllerBase
 {
-    private readonly IMembershipPlanService _membershipPlanService;
+    private readonly IMediator _mediator;
 
-    public MembershipPlansController(IMembershipPlanService membershipPlanService)
+    public MembershipPlansController(IMediator mediator)
     {
-        _membershipPlanService = membershipPlanService;
+        _mediator = mediator;
     }
 
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<MembershipPlanResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<MembershipPlanResponse>>> GetAll(CancellationToken cancellationToken)
     {
-        var response = await _membershipPlanService.GetAllPlansAsync(cancellationToken);
+        var response = await _mediator.Send(new GetAllMembershipPlansQuery(), cancellationToken);
         return Ok(response);
     }
 
@@ -31,7 +32,7 @@ public sealed class MembershipPlansController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<MembershipPlanResponse>> GetById(int id, CancellationToken cancellationToken)
     {
-        var response = await _membershipPlanService.GetPlanByIdAsync(id, cancellationToken);
+        var response = await _mediator.Send(new GetMembershipPlanByIdQuery(id), cancellationToken);
         return Ok(response);
     }
 
@@ -40,7 +41,7 @@ public sealed class MembershipPlansController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<MembershipPlanResponse>> CreateTimeBased([FromBody] CreateTimeBasedPlanRequest request, CancellationToken cancellationToken)
     {
-        var response = await _membershipPlanService.CreateTimeBasedPlanAsync(request, cancellationToken);
+        var response = await _mediator.Send(new CreateTimeBasedPlanCommand(request), cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
     }
 
@@ -49,7 +50,7 @@ public sealed class MembershipPlansController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<MembershipPlanResponse>> CreateVisitBased([FromBody] CreateVisitBasedPlanRequest request, CancellationToken cancellationToken)
     {
-        var response = await _membershipPlanService.CreateVisitBasedPlanAsync(request, cancellationToken);
+        var response = await _mediator.Send(new CreateVisitBasedPlanCommand(request), cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
     }
 
@@ -58,7 +59,7 @@ public sealed class MembershipPlansController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<MembershipPlanResponse>> CreateCombined([FromBody] CreateCombinedPlanRequest request, CancellationToken cancellationToken)
     {
-        var response = await _membershipPlanService.CreateCombinedPlanAsync(request, cancellationToken);
+        var response = await _mediator.Send(new CreateCombinedPlanCommand(request), cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
     }
 
@@ -68,7 +69,7 @@ public sealed class MembershipPlansController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<MembershipPlanResponse>> UpdateTimeBased(int id, [FromBody] UpdateTimeBasedPlanRequest request, CancellationToken cancellationToken)
     {
-        var response = await _membershipPlanService.UpdateTimeBasedPlanAsync(id, request, cancellationToken);
+        var response = await _mediator.Send(new UpdateTimeBasedPlanCommand(id, request), cancellationToken);
         return Ok(response);
     }
 
@@ -78,7 +79,7 @@ public sealed class MembershipPlansController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<MembershipPlanResponse>> UpdateVisitBased(int id, [FromBody] UpdateVisitBasedPlanRequest request, CancellationToken cancellationToken)
     {
-        var response = await _membershipPlanService.UpdateVisitBasedPlanAsync(id, request, cancellationToken);
+        var response = await _mediator.Send(new UpdateVisitBasedPlanCommand(id, request), cancellationToken);
         return Ok(response);
     }
 
@@ -88,7 +89,7 @@ public sealed class MembershipPlansController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<MembershipPlanResponse>> UpdateCombined(int id, [FromBody] UpdateCombinedPlanRequest request, CancellationToken cancellationToken)
     {
-        var response = await _membershipPlanService.UpdateCombinedPlanAsync(id, request, cancellationToken);
+        var response = await _mediator.Send(new UpdateCombinedPlanCommand(id, request), cancellationToken);
         return Ok(response);
     }
 
@@ -97,7 +98,7 @@ public sealed class MembershipPlansController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        await _membershipPlanService.DeactivatePlanAsync(id, cancellationToken);
+        await _mediator.Send(new DeactivateMembershipPlanCommand(id), cancellationToken);
         return NoContent();
     }
 }

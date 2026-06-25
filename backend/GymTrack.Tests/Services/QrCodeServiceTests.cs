@@ -1,8 +1,11 @@
+using GymTrack.Application.QrCodes;
 using GymTrack.Common.Exceptions;
 using GymTrack.Data;
 using GymTrack.Entities;
 using GymTrack.Enums;
 using GymTrack.Services;
+using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GymTrack.Tests.Services;
 
@@ -13,10 +16,12 @@ public sealed class QrCodeServiceTests
     {
         await using var dbContext = TestDbContextFactory.Create();
         var member = await SeedMemberAsync(dbContext, "mika@example.com", "GYM-2026-0007");
-        var service = new QrCodeService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
+        var qrCodeService = provider.GetRequiredService<IQrCodeService>();
 
-        var fromMember = await service.GenerateQrCodeForMemberAsync(member.Id);
-        var fromText = service.GenerateQrCodeFromText(member.MembershipCode);
+        var fromMember = await mediator.Send(new GenerateQrCodeForMemberQuery(member.Id));
+        var fromText = qrCodeService.GenerateQrCodeFromText(member.MembershipCode);
 
         Assert.NotEmpty(fromMember);
         Assert.Equal(fromText, fromMember);
@@ -25,8 +30,7 @@ public sealed class QrCodeServiceTests
     [Fact]
     public void GenerateQrCodeFromText_RejectsBlankText()
     {
-        using var dbContext = TestDbContextFactory.Create();
-        var service = new QrCodeService(dbContext);
+        var service = new QrCodeService();
 
         Assert.Throws<BadRequestException>(() => service.GenerateQrCodeFromText("   "));
     }

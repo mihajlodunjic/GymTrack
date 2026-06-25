@@ -1,6 +1,7 @@
+using GymTrack.Application.CheckIns;
 using GymTrack.DTOs.CheckIn;
 using GymTrack.Enums;
-using GymTrack.Services;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,11 +11,11 @@ namespace GymTrack.Controllers;
 [Route("api/check-ins")]
 public sealed class CheckInsController : ControllerBase
 {
-    private readonly ICheckInService _checkInService;
+    private readonly IMediator _mediator;
 
-    public CheckInsController(ICheckInService checkInService)
+    public CheckInsController(IMediator mediator)
     {
-        _checkInService = checkInService;
+        _mediator = mediator;
     }
 
     [Authorize(Roles = nameof(UserRole.Admin))]
@@ -22,7 +23,7 @@ public sealed class CheckInsController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<CheckInResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<CheckInResponse>>> GetAll(CancellationToken cancellationToken)
     {
-        var response = await _checkInService.GetAllCheckInsAsync(cancellationToken);
+        var response = await _mediator.Send(new GetAllCheckInsQuery(), cancellationToken);
         return Ok(response);
     }
 
@@ -32,7 +33,7 @@ public sealed class CheckInsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IReadOnlyList<CheckInResponse>>> GetForMember(int memberId, CancellationToken cancellationToken)
     {
-        var response = await _checkInService.GetCheckInsForMemberAsync(memberId, cancellationToken);
+        var response = await _mediator.Send(new GetCheckInsForMemberQuery(memberId), cancellationToken);
         return Ok(response);
     }
 
@@ -47,7 +48,9 @@ public sealed class CheckInsController : ControllerBase
         [FromBody] CreateCheckInByMemberIdRequest? request,
         CancellationToken cancellationToken)
     {
-        var response = await _checkInService.CheckInByMemberIdAsync(memberId, request ?? new CreateCheckInByMemberIdRequest(), User, cancellationToken);
+        var response = await _mediator.Send(
+            new CreateCheckInByMemberIdCommand(memberId, request ?? new CreateCheckInByMemberIdRequest(), User),
+            cancellationToken);
         return StatusCode(StatusCodes.Status201Created, response);
     }
 
@@ -62,7 +65,9 @@ public sealed class CheckInsController : ControllerBase
         [FromBody] CreateCheckInByCodeRequest? request,
         CancellationToken cancellationToken)
     {
-        var response = await _checkInService.CheckInByMembershipCodeAsync(membershipCode, request ?? new CreateCheckInByCodeRequest(), User, cancellationToken);
+        var response = await _mediator.Send(
+            new CreateCheckInByMembershipCodeCommand(membershipCode, request ?? new CreateCheckInByCodeRequest(), User),
+            cancellationToken);
         return StatusCode(StatusCodes.Status201Created, response);
     }
 
@@ -73,7 +78,7 @@ public sealed class CheckInsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<IReadOnlyList<CheckInResponse>>> GetMe(CancellationToken cancellationToken)
     {
-        var response = await _checkInService.GetCurrentMemberCheckInsAsync(User, cancellationToken);
+        var response = await _mediator.Send(new GetCurrentMemberCheckInsQuery(User), cancellationToken);
         return Ok(response);
     }
 }

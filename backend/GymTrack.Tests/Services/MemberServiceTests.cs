@@ -1,8 +1,11 @@
+using GymTrack.Application.Members;
 using GymTrack.Common.Exceptions;
 using GymTrack.DTOs.Member;
 using GymTrack.Entities;
 using GymTrack.Enums;
 using GymTrack.Services;
+using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GymTrack.Tests.Services;
 
@@ -12,16 +15,17 @@ public sealed class MemberServiceTests
     public async Task CreateMemberAsync_CreatesUserAndMemberProfile()
     {
         await using var dbContext = TestDbContextFactory.Create();
-        var service = new MemberService(dbContext, new PasswordService());
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.CreateMemberAsync(new CreateMemberRequest
+        var response = await mediator.Send(new CreateMemberCommand(new CreateMemberRequest
         {
             FirstName = "Pera",
             LastName = "Peric",
             Email = "pera@gymtrack.local",
             PhoneNumber = "0601234567",
             Password = "StrongPass1!"
-        });
+        }));
 
         var member = await dbContext.Members.FindAsync(response.Id);
         var user = await dbContext.Users.FindAsync(response.UserId);
@@ -39,23 +43,24 @@ public sealed class MemberServiceTests
     public async Task CreateMemberAsync_GeneratesUniqueMembershipCodes()
     {
         await using var dbContext = TestDbContextFactory.Create();
-        var service = new MemberService(dbContext, new PasswordService());
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var first = await service.CreateMemberAsync(new CreateMemberRequest
+        var first = await mediator.Send(new CreateMemberCommand(new CreateMemberRequest
         {
             FirstName = "Pera",
             LastName = "Peric",
             Email = "pera@gymtrack.local",
             Password = "StrongPass1!"
-        });
+        }));
 
-        var second = await service.CreateMemberAsync(new CreateMemberRequest
+        var second = await mediator.Send(new CreateMemberCommand(new CreateMemberRequest
         {
             FirstName = "Mika",
             LastName = "Mikic",
             Email = "mika@gymtrack.local",
             Password = "StrongPass1!"
-        });
+        }));
 
         Assert.NotEqual(first.MembershipCode, second.MembershipCode);
     }
@@ -64,45 +69,48 @@ public sealed class MemberServiceTests
     public async Task CreateMemberAsync_RejectsDuplicateEmail()
     {
         await using var dbContext = TestDbContextFactory.Create();
-        var service = new MemberService(dbContext, new PasswordService());
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        await service.CreateMemberAsync(new CreateMemberRequest
+        await mediator.Send(new CreateMemberCommand(new CreateMemberRequest
         {
             FirstName = "Pera",
             LastName = "Peric",
             Email = "pera@gymtrack.local",
             Password = "StrongPass1!"
-        });
+        }));
 
-        await Assert.ThrowsAsync<ConflictException>(() => service.CreateMemberAsync(new CreateMemberRequest
+        await Assert.ThrowsAsync<ConflictException>(() => mediator.Send(new CreateMemberCommand(new CreateMemberRequest
         {
             FirstName = "Mika",
             LastName = "Mikic",
             Email = "PERA@gymtrack.local",
             Password = "StrongPass1!"
-        }));
+        })));
     }
 
     [Fact]
     public async Task UpdateMemberAsync_UpdatesProfileAndEmail()
     {
         await using var dbContext = TestDbContextFactory.Create();
-        var service = new MemberService(dbContext, new PasswordService());
-        var created = await service.CreateMemberAsync(new CreateMemberRequest
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
+
+        var created = await mediator.Send(new CreateMemberCommand(new CreateMemberRequest
         {
             FirstName = "Pera",
             LastName = "Peric",
             Email = "pera@gymtrack.local",
             Password = "StrongPass1!"
-        });
+        }));
 
-        var updated = await service.UpdateMemberAsync(created.Id, new UpdateMemberRequest
+        var updated = await mediator.Send(new UpdateMemberCommand(created.Id, new UpdateMemberRequest
         {
             FirstName = "Petar",
             LastName = "Petrovic",
             Email = "petar@gymtrack.local",
             PhoneNumber = "0600000000"
-        });
+        }));
 
         Assert.Equal("Petar", updated.FirstName);
         Assert.Equal("Petrovic", updated.LastName);
@@ -114,16 +122,18 @@ public sealed class MemberServiceTests
     public async Task DeactivateMemberAsync_DeactivatesMemberAndUser()
     {
         await using var dbContext = TestDbContextFactory.Create();
-        var service = new MemberService(dbContext, new PasswordService());
-        var created = await service.CreateMemberAsync(new CreateMemberRequest
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
+
+        var created = await mediator.Send(new CreateMemberCommand(new CreateMemberRequest
         {
             FirstName = "Pera",
             LastName = "Peric",
             Email = "pera@gymtrack.local",
             Password = "StrongPass1!"
-        });
+        }));
 
-        await service.DeactivateMemberAsync(created.Id);
+        await mediator.Send(new DeactivateMemberCommand(created.Id));
 
         var member = await dbContext.Members.FindAsync(created.Id);
         var user = await dbContext.Users.FindAsync(created.UserId);
@@ -138,28 +148,27 @@ public sealed class MemberServiceTests
     public async Task GetCurrentMemberProfileAsync_ReturnsOnlyClaimMemberProfile()
     {
         await using var dbContext = TestDbContextFactory.Create();
-        var service = new MemberService(dbContext, new PasswordService());
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var first = await service.CreateMemberAsync(new CreateMemberRequest
+        var first = await mediator.Send(new CreateMemberCommand(new CreateMemberRequest
         {
             FirstName = "Pera",
             LastName = "Peric",
             Email = "pera@gymtrack.local",
             Password = "StrongPass1!"
-        });
+        }));
 
-        var second = await service.CreateMemberAsync(new CreateMemberRequest
+        var second = await mediator.Send(new CreateMemberCommand(new CreateMemberRequest
         {
             FirstName = "Mika",
             LastName = "Mikic",
             Email = "mika@gymtrack.local",
             Password = "StrongPass1!"
-        });
+        }));
 
-        var user = await dbContext.Users
-            .FindAsync(second.UserId);
-        var member = await dbContext.Members
-            .FindAsync(second.Id);
+        var user = await dbContext.Users.FindAsync(second.UserId);
+        var member = await dbContext.Members.FindAsync(second.Id);
 
         Assert.NotNull(user);
         Assert.NotNull(member);
@@ -167,7 +176,7 @@ public sealed class MemberServiceTests
         user!.Member = member!;
 
         var principal = TestClaimsPrincipalFactory.Create(user);
-        var profile = await service.GetCurrentMemberProfileAsync(principal);
+        var profile = await mediator.Send(new GetCurrentMemberProfileQuery(principal));
 
         Assert.Equal(second.Id, profile.Id);
         Assert.Equal("mika@gymtrack.local", profile.Email);

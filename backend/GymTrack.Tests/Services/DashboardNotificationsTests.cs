@@ -1,10 +1,11 @@
 using System.Reflection;
+using GymTrack.Application.Dashboard;
 using GymTrack.Controllers;
-using GymTrack.Data;
 using GymTrack.Entities;
 using GymTrack.Enums;
-using GymTrack.Services;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GymTrack.Tests.Services;
 
@@ -32,8 +33,9 @@ public sealed class DashboardNotificationsTests
 
         await dbContext.SaveChangesAsync();
 
-        var service = new DashboardService(dbContext);
-        var notifications = await service.GetRecentNotificationsAsync();
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
+        var notifications = await mediator.Send(new GetRecentNotificationsQuery());
 
         Assert.Equal(2, notifications.Count);
         Assert.Equal("Newer", notifications[0].Title);

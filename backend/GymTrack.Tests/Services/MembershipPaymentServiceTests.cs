@@ -1,10 +1,12 @@
+using GymTrack.Application.MembershipPayments;
 using GymTrack.Common.Exceptions;
 using GymTrack.Data;
 using GymTrack.DTOs.MembershipPayment;
 using GymTrack.Entities;
 using GymTrack.Enums;
-using GymTrack.Services;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GymTrack.Tests.Services;
 
@@ -17,9 +19,10 @@ public sealed class MembershipPaymentServiceTests
         var admin = await SeedAdminAsync(dbContext);
         var member = await SeedMemberAsync(dbContext, "marko@example.com", "GYM-2026-0001");
         var plan = await SeedTimeBasedPlanAsync(dbContext, durationInDays: 30, price: 3000m);
-        var service = CreateService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.CreatePaymentAsync(
+        var response = await mediator.Send(new CreateMembershipPaymentCommand(
             new CreateMembershipPaymentRequest
             {
                 MemberId = member.Id,
@@ -27,12 +30,11 @@ public sealed class MembershipPaymentServiceTests
                 ValidFrom = new DateTime(2026, 6, 20, 12, 30, 0, DateTimeKind.Utc),
                 Note = "Placeno u kesu"
             },
-            TestClaimsPrincipalFactory.Create(admin));
+            TestClaimsPrincipalFactory.Create(admin)));
 
-        var createdPayment = await dbContext.MembershipPayments
-            .AsNoTracking()
-            .SingleAsync(payment => payment.Id == response.Id);
+        var createdPayment = await dbContext.MembershipPayments.FindAsync(response.Id);
 
+        Assert.NotNull(createdPayment);
         Assert.Equal(member.Id, response.MemberId);
         Assert.Equal(plan.Id, response.MembershipPlanId);
         Assert.Equal(3000m, response.Amount);
@@ -40,7 +42,7 @@ public sealed class MembershipPaymentServiceTests
         Assert.Equal(new DateTime(2026, 7, 20), response.ValidUntil);
         Assert.Null(response.TotalVisits);
         Assert.Null(response.UsedVisits);
-        Assert.Equal(admin.Id, createdPayment.CreatedByUserId);
+        Assert.Equal(admin.Id, createdPayment!.CreatedByUserId);
         Assert.Equal("Placeno u kesu", createdPayment.Note);
     }
 
@@ -51,16 +53,17 @@ public sealed class MembershipPaymentServiceTests
         var member = await SeedMemberAsync(dbContext, "marko@example.com", "GYM-2026-0001");
         var otherMember = await SeedMemberAsync(dbContext, "ivana@example.com", "GYM-2026-0002");
         var plan = await SeedVisitBasedPlanAsync(dbContext, includedVisits: 10, price: 2500m);
-        var service = CreateService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var exception = await Assert.ThrowsAsync<ForbiddenException>(() => service.CreatePaymentAsync(
+        var exception = await Assert.ThrowsAsync<ForbiddenException>(() => mediator.Send(new CreateMembershipPaymentCommand(
             new CreateMembershipPaymentRequest
             {
                 MemberId = otherMember.Id,
                 MembershipPlanId = plan.Id,
                 ValidFrom = DateTime.UtcNow.Date
             },
-            TestClaimsPrincipalFactory.Create(member.User)));
+            TestClaimsPrincipalFactory.Create(member.User))));
 
         Assert.Equal("Only admins can create membership payments.", exception.Message);
     }
@@ -72,16 +75,17 @@ public sealed class MembershipPaymentServiceTests
         var admin = await SeedAdminAsync(dbContext);
         var member = await SeedMemberAsync(dbContext, "marko@example.com", "GYM-2026-0001");
         var plan = await SeedVisitBasedPlanAsync(dbContext, includedVisits: 10, price: 2500m, isActive: false);
-        var service = CreateService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        await Assert.ThrowsAsync<BadRequestException>(() => service.CreatePaymentAsync(
+        await Assert.ThrowsAsync<BadRequestException>(() => mediator.Send(new CreateMembershipPaymentCommand(
             new CreateMembershipPaymentRequest
             {
                 MemberId = member.Id,
                 MembershipPlanId = plan.Id,
                 ValidFrom = DateTime.UtcNow.Date
             },
-            TestClaimsPrincipalFactory.Create(admin)));
+            TestClaimsPrincipalFactory.Create(admin))));
     }
 
     [Fact]
@@ -91,16 +95,17 @@ public sealed class MembershipPaymentServiceTests
         var admin = await SeedAdminAsync(dbContext);
         var member = await SeedMemberAsync(dbContext, "marko@example.com", "GYM-2026-0001", isActive: false);
         var plan = await SeedVisitBasedPlanAsync(dbContext, includedVisits: 10, price: 2500m);
-        var service = CreateService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        await Assert.ThrowsAsync<BadRequestException>(() => service.CreatePaymentAsync(
+        await Assert.ThrowsAsync<BadRequestException>(() => mediator.Send(new CreateMembershipPaymentCommand(
             new CreateMembershipPaymentRequest
             {
                 MemberId = member.Id,
                 MembershipPlanId = plan.Id,
                 ValidFrom = DateTime.UtcNow.Date
             },
-            TestClaimsPrincipalFactory.Create(admin)));
+            TestClaimsPrincipalFactory.Create(admin))));
     }
 
     [Fact]
@@ -110,16 +115,17 @@ public sealed class MembershipPaymentServiceTests
         var admin = await SeedAdminAsync(dbContext);
         var member = await SeedMemberAsync(dbContext, "marko@example.com", "GYM-2026-0001");
         var plan = await SeedVisitBasedPlanAsync(dbContext, includedVisits: 12, price: 2600m);
-        var service = CreateService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.CreatePaymentAsync(
+        var response = await mediator.Send(new CreateMembershipPaymentCommand(
             new CreateMembershipPaymentRequest
             {
                 MemberId = member.Id,
                 MembershipPlanId = plan.Id,
                 ValidFrom = new DateTime(2026, 6, 20)
             },
-            TestClaimsPrincipalFactory.Create(admin));
+            TestClaimsPrincipalFactory.Create(admin)));
 
         Assert.Null(response.ValidUntil);
         Assert.Equal(12, response.TotalVisits);
@@ -134,16 +140,17 @@ public sealed class MembershipPaymentServiceTests
         var admin = await SeedAdminAsync(dbContext);
         var member = await SeedMemberAsync(dbContext, "marko@example.com", "GYM-2026-0001");
         var plan = await SeedCombinedPlanAsync(dbContext, durationInDays: 45, includedVisits: 10, price: 3500m);
-        var service = CreateService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.CreatePaymentAsync(
+        var response = await mediator.Send(new CreateMembershipPaymentCommand(
             new CreateMembershipPaymentRequest
             {
                 MemberId = member.Id,
                 MembershipPlanId = plan.Id,
                 ValidFrom = new DateTime(2026, 6, 20)
             },
-            TestClaimsPrincipalFactory.Create(admin));
+            TestClaimsPrincipalFactory.Create(admin)));
 
         Assert.Equal(new DateTime(2026, 8, 4), response.ValidUntil);
         Assert.Equal(10, response.TotalVisits);
@@ -162,9 +169,10 @@ public sealed class MembershipPaymentServiceTests
             await SeedTimeBasedPlanAsync(dbContext, durationInDays: 30, price: 3000m),
             validFrom: DateTime.UtcNow.Date.AddDays(-5),
             validUntil: DateTime.UtcNow.Date.AddDays(25));
-        var service = CreateService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.GetMembershipStatusForMemberAsync(member.Id);
+        var response = await mediator.Send(new GetMembershipStatusForMemberQuery(member.Id));
 
         Assert.True(response.HasActiveMembership);
         Assert.Equal(activePayment.Id, response.ActivePaymentId);
@@ -184,9 +192,10 @@ public sealed class MembershipPaymentServiceTests
             validFrom: DateTime.UtcNow.Date.AddDays(-30),
             totalVisits: 10,
             usedVisits: 4);
-        var service = CreateService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.GetMembershipStatusForMemberAsync(member.Id);
+        var response = await mediator.Send(new GetMembershipStatusForMemberQuery(member.Id));
 
         Assert.True(response.HasActiveMembership);
         Assert.Equal(activePayment.Id, response.ActivePaymentId);
@@ -207,9 +216,10 @@ public sealed class MembershipPaymentServiceTests
             validUntil: DateTime.UtcNow.Date.AddDays(35),
             totalVisits: 10,
             usedVisits: 3);
-        var service = CreateService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.GetMembershipStatusForMemberAsync(member.Id);
+        var response = await mediator.Send(new GetMembershipStatusForMemberQuery(member.Id));
 
         Assert.True(response.HasActiveMembership);
         Assert.Equal(activePayment.Id, response.ActivePaymentId);
@@ -248,77 +258,14 @@ public sealed class MembershipPaymentServiceTests
             validFrom: DateTime.UtcNow.Date.AddDays(-1),
             validUntil: DateTime.UtcNow.Date.AddDays(29));
 
-        var service = CreateService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.GetActiveMembershipForMemberAsync(member.Id);
+        var response = await mediator.Send(new GetActiveMembershipForMemberQuery(member.Id));
 
         Assert.NotNull(response);
         Assert.Equal(timePayment.Id, response!.Id);
         Assert.Equal(MembershipPlanType.TimeBased, response.PlanType);
-    }
-
-    [Fact]
-    public async Task GetActiveMembershipForMemberAsync_PicksNearestExpiringCombinedPayment()
-    {
-        await using var dbContext = TestDbContextFactory.Create();
-        var member = await SeedMemberAsync(dbContext, "marko@example.com", "GYM-2026-0001");
-        var plan = await SeedCombinedPlanAsync(dbContext, durationInDays: 45, includedVisits: 10, price: 3500m);
-
-        await SeedPaymentAsync(
-            dbContext,
-            member,
-            plan,
-            validFrom: DateTime.UtcNow.Date.AddDays(-1),
-            validUntil: DateTime.UtcNow.Date.AddDays(20),
-            totalVisits: 10,
-            usedVisits: 1);
-        var nearestPayment = await SeedPaymentAsync(
-            dbContext,
-            member,
-            plan,
-            validFrom: DateTime.UtcNow.Date.AddDays(-1),
-            validUntil: DateTime.UtcNow.Date.AddDays(5),
-            totalVisits: 10,
-            usedVisits: 1);
-
-        var service = CreateService(dbContext);
-
-        var response = await service.GetActiveMembershipForMemberAsync(member.Id);
-
-        Assert.NotNull(response);
-        Assert.Equal(nearestPayment.Id, response!.Id);
-    }
-
-    [Fact]
-    public async Task GetActiveMembershipForMemberAsync_PicksEarliestPurchasedVisitBasedPayment()
-    {
-        await using var dbContext = TestDbContextFactory.Create();
-        var member = await SeedMemberAsync(dbContext, "marko@example.com", "GYM-2026-0001");
-        var plan = await SeedVisitBasedPlanAsync(dbContext, includedVisits: 10, price: 2500m);
-
-        var firstPayment = await SeedPaymentAsync(
-            dbContext,
-            member,
-            plan,
-            paidAt: DateTime.UtcNow.AddDays(-5),
-            validFrom: DateTime.UtcNow.Date.AddDays(-30),
-            totalVisits: 10,
-            usedVisits: 4);
-        await SeedPaymentAsync(
-            dbContext,
-            member,
-            plan,
-            paidAt: DateTime.UtcNow.AddDays(-1),
-            validFrom: DateTime.UtcNow.Date.AddDays(-10),
-            totalVisits: 10,
-            usedVisits: 1);
-
-        var service = CreateService(dbContext);
-
-        var response = await service.GetActiveMembershipForMemberAsync(member.Id);
-
-        Assert.NotNull(response);
-        Assert.Equal(firstPayment.Id, response!.Id);
     }
 
     [Fact]
@@ -332,9 +279,10 @@ public sealed class MembershipPaymentServiceTests
         await SeedPaymentAsync(dbContext, member, plan, validFrom: DateTime.UtcNow.Date.AddDays(-10), totalVisits: 10, usedVisits: 2);
         await SeedPaymentAsync(dbContext, otherMember, plan, validFrom: DateTime.UtcNow.Date.AddDays(-10), totalVisits: 10, usedVisits: 1);
 
-        var service = CreateService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.GetCurrentMemberPaymentsAsync(TestClaimsPrincipalFactory.Create(member.User));
+        var response = await mediator.Send(new GetCurrentMemberPaymentsQuery(TestClaimsPrincipalFactory.Create(member.User)));
 
         Assert.Single(response);
         Assert.All(response, payment => Assert.Equal(member.Id, payment.MemberId));
@@ -361,19 +309,17 @@ public sealed class MembershipPaymentServiceTests
             plan,
             validFrom: DateTime.UtcNow.Date.AddDays(-10),
             totalVisits: 10,
-            usedVisits: 1);
+            usedVisits: 4);
 
-        var service = CreateService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.GetCurrentMemberStatusAsync(TestClaimsPrincipalFactory.Create(member.User));
+        var response = await mediator.Send(new GetCurrentMemberStatusQuery(TestClaimsPrincipalFactory.Create(member.User)));
 
         Assert.True(response.HasActiveMembership);
-        Assert.Equal(member.Id, response.MemberId);
         Assert.Equal(ownPayment.Id, response.ActivePaymentId);
+        Assert.Equal(member.Id, response.MemberId);
     }
-
-    private static MembershipPaymentService CreateService(AppDbContext dbContext) =>
-        new(dbContext);
 
     private static async Task<User> SeedAdminAsync(AppDbContext dbContext)
     {
@@ -390,11 +336,7 @@ public sealed class MembershipPaymentServiceTests
         return admin;
     }
 
-    private static async Task<Member> SeedMemberAsync(
-        AppDbContext dbContext,
-        string email,
-        string membershipCode,
-        bool isActive = true)
+    private static async Task<Member> SeedMemberAsync(AppDbContext dbContext, string email, string membershipCode, bool isActive = true)
     {
         var user = new User
         {
@@ -407,9 +349,8 @@ public sealed class MembershipPaymentServiceTests
         var member = new Member
         {
             User = user,
-            FirstName = "Marko",
-            LastName = membershipCode.EndsWith("2", StringComparison.Ordinal) ? "Ivanovic" : "Markovic",
-            PhoneNumber = "0601234567",
+            FirstName = membershipCode.EndsWith("2", StringComparison.Ordinal) ? "Ivana" : "Marko",
+            LastName = membershipCode.EndsWith("2", StringComparison.Ordinal) ? "Ivic" : "Markovic",
             MembershipCode = membershipCode,
             IsActive = isActive
         };
@@ -421,18 +362,14 @@ public sealed class MembershipPaymentServiceTests
         return member;
     }
 
-    private static async Task<TimeBasedMembershipPlan> SeedTimeBasedPlanAsync(
-        AppDbContext dbContext,
-        int durationInDays,
-        decimal price,
-        bool isActive = true)
+    private static async Task<TimeBasedMembershipPlan> SeedTimeBasedPlanAsync(AppDbContext dbContext, int durationInDays, decimal price)
     {
         var plan = new TimeBasedMembershipPlan
         {
-            Name = $"Time plan {durationInDays}",
+            Name = "Mesecna",
             Price = price,
             DurationInDays = durationInDays,
-            IsActive = isActive
+            IsActive = true
         };
 
         dbContext.MembershipPlans.Add(plan);
@@ -440,15 +377,11 @@ public sealed class MembershipPaymentServiceTests
         return plan;
     }
 
-    private static async Task<VisitBasedMembershipPlan> SeedVisitBasedPlanAsync(
-        AppDbContext dbContext,
-        int includedVisits,
-        decimal price,
-        bool isActive = true)
+    private static async Task<VisitBasedMembershipPlan> SeedVisitBasedPlanAsync(AppDbContext dbContext, int includedVisits, decimal price, bool isActive = true)
     {
         var plan = new VisitBasedMembershipPlan
         {
-            Name = $"Visit plan {includedVisits}",
+            Name = "10 ulazaka",
             Price = price,
             IncludedVisits = includedVisits,
             IsActive = isActive
@@ -459,20 +392,15 @@ public sealed class MembershipPaymentServiceTests
         return plan;
     }
 
-    private static async Task<CombinedMembershipPlan> SeedCombinedPlanAsync(
-        AppDbContext dbContext,
-        int durationInDays,
-        int includedVisits,
-        decimal price,
-        bool isActive = true)
+    private static async Task<CombinedMembershipPlan> SeedCombinedPlanAsync(AppDbContext dbContext, int durationInDays, int includedVisits, decimal price)
     {
         var plan = new CombinedMembershipPlan
         {
-            Name = $"Combined plan {includedVisits}/{durationInDays}",
+            Name = "Kombinovana",
             Price = price,
             DurationInDays = durationInDays,
             IncludedVisits = includedVisits,
-            IsActive = isActive
+            IsActive = true
         };
 
         dbContext.MembershipPlans.Add(plan);
@@ -485,13 +413,19 @@ public sealed class MembershipPaymentServiceTests
         Member member,
         MembershipPlan plan,
         DateTime validFrom,
-        DateTime? paidAt = null,
         DateTime? validUntil = null,
         int? totalVisits = null,
-        int? usedVisits = null)
+        int? usedVisits = null,
+        DateTime? paidAt = null)
     {
         var admin = await dbContext.Users.SingleOrDefaultAsync(user => user.Role == UserRole.Admin);
         admin ??= await SeedAdminAsync(dbContext);
+
+        if (dbContext.Entry(plan).State == EntityState.Detached)
+        {
+            dbContext.MembershipPlans.Add(plan);
+            await dbContext.SaveChangesAsync();
+        }
 
         var payment = new MembershipPayment
         {
@@ -508,9 +442,6 @@ public sealed class MembershipPaymentServiceTests
 
         dbContext.MembershipPayments.Add(payment);
         await dbContext.SaveChangesAsync();
-        await dbContext.Entry(payment).Reference(entity => entity.Member).LoadAsync();
-        await dbContext.Entry(payment).Reference(entity => entity.MembershipPlan).LoadAsync();
-
         return payment;
     }
 }

@@ -1,6 +1,7 @@
 using GymTrack.Common.Options;
 using GymTrack.Entities;
 using GymTrack.Enums;
+using GymTrack.Repositories.Implementations;
 using GymTrack.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -27,7 +28,8 @@ public sealed class AdminSeedServiceTests
         await dbContext.SaveChangesAsync();
 
         var service = new AdminSeedService(
-            dbContext,
+            new UserRepository(dbContext),
+            new EfUnitOfWork(dbContext),
             passwordService,
             Options.Create(new AdminSeedSettings
             {

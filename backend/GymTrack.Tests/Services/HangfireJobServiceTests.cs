@@ -3,6 +3,7 @@ using GymTrack.Entities;
 using GymTrack.Enums;
 using GymTrack.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GymTrack.Tests.Services;
 
@@ -16,7 +17,8 @@ public sealed class HangfireJobServiceTests
         var member = await SeedMemberAsync(dbContext, "pera@example.com", "GYM-2026-0001");
         await SeedExpiringTimeBasedPaymentAsync(dbContext, member, DateTime.UtcNow.Date.AddDays(3));
 
-        var service = new HangfireJobService(dbContext, new DashboardService(dbContext));
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var service = provider.GetRequiredService<IHangfireJobService>();
 
         await service.CheckExpiringMembershipsAsync();
 
@@ -35,7 +37,8 @@ public sealed class HangfireJobServiceTests
         var member = await SeedMemberAsync(dbContext, "pera@example.com", "GYM-2026-0001");
         await SeedExpiringTimeBasedPaymentAsync(dbContext, member, DateTime.UtcNow.Date.AddDays(2));
 
-        var service = new HangfireJobService(dbContext, new DashboardService(dbContext));
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var service = provider.GetRequiredService<IHangfireJobService>();
 
         await service.CheckExpiringMembershipsAsync();
         await service.CheckExpiringMembershipsAsync();
@@ -63,7 +66,8 @@ public sealed class HangfireJobServiceTests
 
         await dbContext.SaveChangesAsync();
 
-        var service = new HangfireJobService(dbContext, new DashboardService(dbContext));
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var service = provider.GetRequiredService<IHangfireJobService>();
 
         await service.CreateDailyAdminReportAsync();
 

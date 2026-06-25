@@ -1,26 +1,28 @@
 using GymTrack.Common.Options;
-using GymTrack.Data;
 using GymTrack.Entities;
 using GymTrack.Enums;
-using Microsoft.EntityFrameworkCore;
+using GymTrack.Repositories.Interfaces;
 using Microsoft.Extensions.Options;
 
 namespace GymTrack.Services;
 
 public sealed class AdminSeedService : IAdminSeedService
 {
-    private readonly AppDbContext _dbContext;
+    private readonly IUserRepository _userRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordService _passwordService;
     private readonly AdminSeedSettings _settings;
     private readonly ILogger<AdminSeedService> _logger;
 
     public AdminSeedService(
-        AppDbContext dbContext,
+        IUserRepository userRepository,
+        IUnitOfWork unitOfWork,
         IPasswordService passwordService,
         IOptions<AdminSeedSettings> settings,
         ILogger<AdminSeedService> logger)
     {
-        _dbContext = dbContext;
+        _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
         _passwordService = passwordService;
         _settings = settings.Value;
         _logger = logger;
@@ -36,11 +38,7 @@ public sealed class AdminSeedService : IAdminSeedService
 
         var normalizedEmail = NormalizeEmail(_settings.Email);
 
-        var existingUser = await _dbContext.Users
-            .AsNoTracking()
-            .SingleOrDefaultAsync(user => user.Email == normalizedEmail, cancellationToken);
-
-        if (existingUser is not null)
+        if (await _userRepository.GetByEmailWithMemberAsync(normalizedEmail, cancellationToken) is not null)
         {
             _logger.LogInformation("Admin seed skipped because user '{Email}' already exists.", normalizedEmail);
             return;
@@ -54,8 +52,8 @@ public sealed class AdminSeedService : IAdminSeedService
             IsActive = true
         };
 
-        _dbContext.Users.Add(adminUser);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        _userRepository.Add(adminUser);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Admin seed created user '{Email}'.", normalizedEmail);
     }

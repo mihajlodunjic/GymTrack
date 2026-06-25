@@ -1,6 +1,7 @@
+using GymTrack.Application.Dashboard;
 using GymTrack.DTOs.Dashboard;
 using GymTrack.Enums;
-using GymTrack.Services;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,18 +12,18 @@ namespace GymTrack.Controllers;
 [Authorize(Roles = nameof(UserRole.Admin))]
 public sealed class DashboardController : ControllerBase
 {
-    private readonly IDashboardService _dashboardService;
+    private readonly IMediator _mediator;
 
-    public DashboardController(IDashboardService dashboardService)
+    public DashboardController(IMediator mediator)
     {
-        _dashboardService = dashboardService;
+        _mediator = mediator;
     }
 
     [HttpGet("stats")]
     [ProducesResponseType(typeof(DashboardStatsResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<DashboardStatsResponse>> GetStats(CancellationToken cancellationToken)
     {
-        var response = await _dashboardService.GetDashboardStatsAsync(cancellationToken);
+        var response = await _mediator.Send(new GetDashboardStatsQuery(), cancellationToken);
         return Ok(response);
     }
 
@@ -30,7 +31,7 @@ public sealed class DashboardController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<ExpiringMembershipResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<ExpiringMembershipResponse>>> GetExpiringMemberships(CancellationToken cancellationToken)
     {
-        var response = await _dashboardService.GetExpiringMembershipsAsync(cancellationToken);
+        var response = await _mediator.Send(new GetExpiringMembershipsQuery(), cancellationToken);
         return Ok(response);
     }
 
@@ -38,7 +39,7 @@ public sealed class DashboardController : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<SystemNotificationResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<SystemNotificationResponse>>> GetNotifications(CancellationToken cancellationToken)
     {
-        var response = await _dashboardService.GetRecentNotificationsAsync(cancellationToken);
+        var response = await _mediator.Send(new GetRecentNotificationsQuery(), cancellationToken);
         return Ok(response);
     }
 }

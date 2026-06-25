@@ -1,11 +1,11 @@
+using GymTrack.Application.Auth;
 using GymTrack.Common.Exceptions;
-using GymTrack.Common.Options;
 using GymTrack.DTOs.Auth;
 using GymTrack.Entities;
 using GymTrack.Enums;
-using GymTrack.Security;
 using GymTrack.Services;
-using Microsoft.Extensions.Options;
+using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GymTrack.Tests.Services;
 
@@ -27,13 +27,14 @@ public sealed class AuthServiceTests
 
         await dbContext.SaveChangesAsync();
 
-        var authService = new AuthService(dbContext, passwordService, CreateTokenService());
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await authService.LoginAsync(new LoginRequest
+        var response = await mediator.Send(new LoginCommand(new LoginRequest
         {
             Email = "ADMIN@gymtrack.local",
             Password = "Admin123!"
-        });
+        }));
 
         Assert.False(string.IsNullOrWhiteSpace(response.Token));
         Assert.Equal("admin@gymtrack.local", response.User.Email);
@@ -56,26 +57,28 @@ public sealed class AuthServiceTests
 
         await dbContext.SaveChangesAsync();
 
-        var authService = new AuthService(dbContext, passwordService, CreateTokenService());
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        await Assert.ThrowsAsync<UnauthorizedException>(() => authService.LoginAsync(new LoginRequest
+        await Assert.ThrowsAsync<UnauthorizedException>(() => mediator.Send(new LoginCommand(new LoginRequest
         {
             Email = "admin@gymtrack.local",
             Password = "WrongPassword!"
-        }));
+        })));
     }
 
     [Fact]
     public async Task LoginAsync_ThrowsUnauthorized_WhenUserDoesNotExist()
     {
         await using var dbContext = TestDbContextFactory.Create();
-        var authService = new AuthService(dbContext, new PasswordService(), CreateTokenService());
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        await Assert.ThrowsAsync<UnauthorizedException>(() => authService.LoginAsync(new LoginRequest
+        await Assert.ThrowsAsync<UnauthorizedException>(() => mediator.Send(new LoginCommand(new LoginRequest
         {
             Email = "missing@gymtrack.local",
             Password = "Admin123!"
-        }));
+        })));
     }
 
     [Fact]
@@ -104,24 +107,14 @@ public sealed class AuthServiceTests
         dbContext.Members.Add(member);
         await dbContext.SaveChangesAsync();
 
-        var authService = new AuthService(dbContext, passwordService, CreateTokenService());
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
         var principal = TestClaimsPrincipalFactory.Create(user);
 
-        var response = await authService.GetCurrentUserAsync(principal);
+        var response = await mediator.Send(new GetCurrentUserQuery(principal));
 
         Assert.Equal(user.Id, response.Id);
         Assert.Equal(member.Id, response.MemberId);
         Assert.Equal(UserRole.Member, response.Role);
-    }
-
-    private static ITokenService CreateTokenService()
-    {
-        return new JwtTokenService(Options.Create(new JwtSettings
-        {
-            Issuer = "GymTrack.Tests",
-            Audience = "GymTrack.Tests.Client",
-            Secret = "01234567890123456789012345678901",
-            ExpirationMinutes = 60
-        }));
     }
 }

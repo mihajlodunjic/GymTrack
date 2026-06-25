@@ -1,7 +1,10 @@
+using GymTrack.Application.Members;
+using GymTrack.Application.MembershipPayments;
+using GymTrack.Application.QrCodes;
 using GymTrack.DTOs.Member;
 using GymTrack.DTOs.MembershipPayment;
 using GymTrack.Enums;
-using GymTrack.Services;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,18 +14,11 @@ namespace GymTrack.Controllers;
 [Route("api/members")]
 public sealed class MembersController : ControllerBase
 {
-    private readonly IMemberService _memberService;
-    private readonly IMembershipPaymentService _membershipPaymentService;
-    private readonly IQrCodeService _qrCodeService;
+    private readonly IMediator _mediator;
 
-    public MembersController(
-        IMemberService memberService,
-        IMembershipPaymentService membershipPaymentService,
-        IQrCodeService qrCodeService)
+    public MembersController(IMediator mediator)
     {
-        _memberService = memberService;
-        _membershipPaymentService = membershipPaymentService;
-        _qrCodeService = qrCodeService;
+        _mediator = mediator;
     }
 
     [Authorize(Roles = nameof(UserRole.Admin))]
@@ -33,7 +29,7 @@ public sealed class MembersController : ControllerBase
         [FromQuery] bool? isActive,
         CancellationToken cancellationToken)
     {
-        var response = await _memberService.GetAllMembersAsync(search, isActive, cancellationToken);
+        var response = await _mediator.Send(new GetAllMembersQuery(search, isActive), cancellationToken);
         return Ok(response);
     }
 
@@ -43,7 +39,7 @@ public sealed class MembersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<MemberDetailsResponse>> GetById(int id, CancellationToken cancellationToken)
     {
-        var response = await _memberService.GetMemberByIdAsync(id, cancellationToken);
+        var response = await _mediator.Send(new GetMemberByIdQuery(id), cancellationToken);
         return Ok(response);
     }
 
@@ -54,7 +50,7 @@ public sealed class MembersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<MemberDetailsResponse>> Create([FromBody] CreateMemberRequest request, CancellationToken cancellationToken)
     {
-        var response = await _memberService.CreateMemberAsync(request, cancellationToken);
+        var response = await _mediator.Send(new CreateMemberCommand(request), cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
     }
 
@@ -66,7 +62,7 @@ public sealed class MembersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<MemberDetailsResponse>> Update(int id, [FromBody] UpdateMemberRequest request, CancellationToken cancellationToken)
     {
-        var response = await _memberService.UpdateMemberAsync(id, request, cancellationToken);
+        var response = await _mediator.Send(new UpdateMemberCommand(id, request), cancellationToken);
         return Ok(response);
     }
 
@@ -76,7 +72,7 @@ public sealed class MembersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
-        await _memberService.DeactivateMemberAsync(id, cancellationToken);
+        await _mediator.Send(new DeactivateMemberCommand(id), cancellationToken);
         return NoContent();
     }
 
@@ -86,7 +82,7 @@ public sealed class MembersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<MemberDetailsResponse>> GetByCode(string membershipCode, CancellationToken cancellationToken)
     {
-        var response = await _memberService.GetMemberByCodeAsync(membershipCode, cancellationToken);
+        var response = await _mediator.Send(new GetMemberByCodeQuery(membershipCode), cancellationToken);
         return Ok(response);
     }
 
@@ -96,7 +92,7 @@ public sealed class MembersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<MembershipStatusResponse>> GetStatusByCode(string membershipCode, CancellationToken cancellationToken)
     {
-        var response = await _membershipPaymentService.GetMembershipStatusByCodeAsync(membershipCode, cancellationToken);
+        var response = await _mediator.Send(new GetMembershipStatusByCodeQuery(membershipCode), cancellationToken);
         return Ok(response);
     }
 
@@ -106,7 +102,7 @@ public sealed class MembersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<MembershipStatusResponse>> GetStatus(int id, CancellationToken cancellationToken)
     {
-        var response = await _membershipPaymentService.GetMembershipStatusForMemberAsync(id, cancellationToken);
+        var response = await _mediator.Send(new GetMembershipStatusForMemberQuery(id), cancellationToken);
         return Ok(response);
     }
 
@@ -117,7 +113,7 @@ public sealed class MembersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetQrCode(int id, CancellationToken cancellationToken)
     {
-        var content = await _qrCodeService.GenerateQrCodeForMemberAsync(id, cancellationToken);
+        var content = await _mediator.Send(new GenerateQrCodeForMemberQuery(id), cancellationToken);
         return File(content, "image/png");
     }
 
@@ -128,7 +124,7 @@ public sealed class MembersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<MemberDetailsResponse>> GetMe(CancellationToken cancellationToken)
     {
-        var response = await _memberService.GetCurrentMemberProfileAsync(User, cancellationToken);
+        var response = await _mediator.Send(new GetCurrentMemberProfileQuery(User), cancellationToken);
         return Ok(response);
     }
 
@@ -139,7 +135,7 @@ public sealed class MembersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<MembershipStatusResponse>> GetMyStatus(CancellationToken cancellationToken)
     {
-        var response = await _membershipPaymentService.GetCurrentMemberStatusAsync(User, cancellationToken);
+        var response = await _mediator.Send(new GetCurrentMemberStatusQuery(User), cancellationToken);
         return Ok(response);
     }
 
@@ -151,7 +147,7 @@ public sealed class MembersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> GetMyQrCode(CancellationToken cancellationToken)
     {
-        var content = await _qrCodeService.GenerateQrCodeForCurrentMemberAsync(User, cancellationToken);
+        var content = await _mediator.Send(new GenerateQrCodeForCurrentMemberQuery(User), cancellationToken);
         return File(content, "image/png");
     }
 }

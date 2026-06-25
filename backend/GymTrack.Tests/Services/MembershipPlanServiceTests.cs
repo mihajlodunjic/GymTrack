@@ -1,9 +1,11 @@
+using GymTrack.Application.MembershipPlans;
 using GymTrack.Common.Exceptions;
 using GymTrack.DTOs.MembershipPlan;
 using GymTrack.Entities;
 using GymTrack.Enums;
-using GymTrack.Services;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace GymTrack.Tests.Services;
 
@@ -13,15 +15,16 @@ public sealed class MembershipPlanServiceTests
     public async Task CreateTimeBasedPlanAsync_CreatesTimeBasedPlan()
     {
         await using var dbContext = TestDbContextFactory.Create();
-        var service = new MembershipPlanService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.CreateTimeBasedPlanAsync(new CreateTimeBasedPlanRequest
+        var response = await mediator.Send(new CreateTimeBasedPlanCommand(new CreateTimeBasedPlanRequest
         {
             Name = "Mesecna",
             Description = "30 dana",
             Price = 3000,
             DurationInDays = 30
-        });
+        }));
 
         Assert.Equal(MembershipPlanType.TimeBased, response.PlanType);
         Assert.Equal(30, response.DurationInDays);
@@ -32,14 +35,15 @@ public sealed class MembershipPlanServiceTests
     public async Task CreateVisitBasedPlanAsync_CreatesVisitBasedPlan()
     {
         await using var dbContext = TestDbContextFactory.Create();
-        var service = new MembershipPlanService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.CreateVisitBasedPlanAsync(new CreateVisitBasedPlanRequest
+        var response = await mediator.Send(new CreateVisitBasedPlanCommand(new CreateVisitBasedPlanRequest
         {
             Name = "10 ulazaka",
             Price = 2500,
             IncludedVisits = 10
-        });
+        }));
 
         Assert.Equal(MembershipPlanType.VisitBased, response.PlanType);
         Assert.Equal(10, response.IncludedVisits);
@@ -50,15 +54,16 @@ public sealed class MembershipPlanServiceTests
     public async Task CreateCombinedPlanAsync_CreatesCombinedPlan()
     {
         await using var dbContext = TestDbContextFactory.Create();
-        var service = new MembershipPlanService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var response = await service.CreateCombinedPlanAsync(new CreateCombinedPlanRequest
+        var response = await mediator.Send(new CreateCombinedPlanCommand(new CreateCombinedPlanRequest
         {
             Name = "10 ulazaka / 45 dana",
             Price = 3500,
             DurationInDays = 45,
             IncludedVisits = 10
-        });
+        }));
 
         Assert.Equal(MembershipPlanType.Combined, response.PlanType);
         Assert.Equal(45, response.DurationInDays);
@@ -69,31 +74,33 @@ public sealed class MembershipPlanServiceTests
     public async Task CreateTimeBasedPlanAsync_RejectsInvalidValues()
     {
         await using var dbContext = TestDbContextFactory.Create();
-        var service = new MembershipPlanService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        await Assert.ThrowsAsync<BadRequestException>(() => service.CreateTimeBasedPlanAsync(new CreateTimeBasedPlanRequest
+        await Assert.ThrowsAsync<BadRequestException>(() => mediator.Send(new CreateTimeBasedPlanCommand(new CreateTimeBasedPlanRequest
         {
             Name = "Neispravan",
             Price = 1000,
             DurationInDays = 0
-        }));
+        })));
     }
 
     [Fact]
     public async Task DeactivatePlanAsync_SoftDeactivatesPlanWithoutDeletingIt()
     {
         await using var dbContext = TestDbContextFactory.Create();
-        var service = new MembershipPlanService(dbContext);
+        using var provider = TestServiceProviderFactory.Create(dbContext);
+        var mediator = provider.GetRequiredService<IMediator>();
 
-        var created = await service.CreateCombinedPlanAsync(new CreateCombinedPlanRequest
+        var created = await mediator.Send(new CreateCombinedPlanCommand(new CreateCombinedPlanRequest
         {
             Name = "Kombinovani",
             Price = 3500,
             DurationInDays = 45,
             IncludedVisits = 10
-        });
+        }));
 
-        await service.DeactivatePlanAsync(created.Id);
+        await mediator.Send(new DeactivateMembershipPlanCommand(created.Id));
 
         var plan = await dbContext.MembershipPlans.SingleOrDefaultAsync(entity => entity.Id == created.Id);
 
